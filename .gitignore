@@ -1,0 +1,87 @@
+# ========================================
+# Python
+# ========================================
+
+__pycache__/
+*.py[cod]
+*.pyo
+
+# ========================================
+# Environment / Secrets
+# ========================================
+
+.env
+.env.*
+!.env.example
+
+*.pem
+*.key
+
+# ========================================
+# Logs
+# ========================================
+
+*.log
+
+# ========================================
+# Hadoop / Spark
+# ========================================
+
+# Hadoop Windows binaries
+hadoop/bin/*.dll
+hadoop/bin/*.exe
+
+# Hadoop temporary files
+hadoop/tmp/
+hadoop/logs/
+
+# Spark generated files
+*.crc
+_SUCCESS
+._SUCCESS.crc
+
+# ========================================
+# Dataset CSV files
+# ========================================
+
+# Raw dataset files
+data/landing/*.csv
+
+# ========================================
+# Generated Spark / Data Outputs
+# ========================================
+
+# Processed Parquet data
+data/processed/
+
+# Generated analytics data
+data/analytics/
+
+# Phase 2 generated comparison output
+phase2/hourly_grid_summary_compare.csv
+
+# Temporary lookup files
+phase2/grid_lookup_tmp*.jsonl
+
+# Performance experiment output
+phase2/sp5_output.txt
+
+# ========================================
+# Test / Temporary folders
+# ========================================
+
+data/empty_test_folder/
+
+# ========================================
+# Operating System
+# ========================================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ========================================
+# VS Code
+# ========================================
+
+.vscode/
