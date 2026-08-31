@@ -27,13 +27,7 @@ __pycache__/
 # Hadoop / Spark
 # ========================================
 
-# Hadoop Windows binaries
-hadoop/bin/*.dll
-hadoop/bin/*.exe
 
-# Hadoop temporary files
-hadoop/tmp/
-hadoop/logs/
 
 # Spark generated files
 *.crc
