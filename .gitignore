@@ -78,4 +78,18 @@ desktop.ini
 # VS Code
 # ========================================
 
-.vscode/
+# Virtual environment
+airflow-venv/
+# Generated/runtime data
+data/dataset/
+data/raw/
+data/rejected/
+data/warehouse/
+
+# Temporary generated reference file
+data/reference/de3_grid_lookup_tmp.jsonl
+
+download_data.py
+
+logs/
+
