@@ -17,8 +17,17 @@ from pyspark.sql.types import (
     LongType,
 )
 
-sys.path.insert(0, "/mnt/c/Network-project/phase2")
-
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "..",
+            "phase2"
+        )
+    )
+)
 from sp2_cleaning import clean, RAW_TO_CANONICAL
 from sp3_aggregations import build_hourly_grid_summary
 from sp4_enrichment import load_milan_grid_lookup
@@ -252,6 +261,7 @@ def main(input_dir=None, output_dir=None, analytics_dir=None, reference_path=Non
         .appName("NetworkIntelligence-DE3")
         .master("local[2]")
         .config("spark.sql.shuffle.partitions", "4")
+        .config("spark.sql.session.timeZone", "UTC")
         .getOrCreate()
     )
 

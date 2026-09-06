@@ -44,7 +44,7 @@ data/landing/*.csv
 # ========================================
 # Generated Spark / Data Outputs
 # ========================================
-
+phase1/network_alerts.csv
 # Processed Parquet data
 data/processed/
 
@@ -93,3 +93,8 @@ download_data.py
 
 logs/
 
+myenv/phase6/ml/ml3_output/train_dataset.csv
+phase6/ml/ml4_output/network_anomaly_scores.csv
+phase6/ml/ml4_output/three_way_comparison.csv
+myenv/
+phase6/ml/ml3_output/train_dataset.csv

@@ -2,13 +2,10 @@ import os
 import json
 import sqlite3
 from pyspark.sql import SparkSession
-
-
-PROJECT_ROOT = "/mnt/c/Network-project"
-HOURLY_SUMMARY_PATH = f"{PROJECT_ROOT}/data/analytics/hourly_grid_summary"
-GEOJSON_PATH = f"{PROJECT_ROOT}/data/reference/milano-grid.geojson"
-DATABASE_PATH = f"{PROJECT_ROOT}/data/warehouse/network_analytics.db"
-
+PROJECT_ROOT = r"C:\Users\vimalraj.ck\network_project"
+HOURLY_SUMMARY_PATH = f"{PROJECT_ROOT}\\data\\analytics\\hourly_grid_summary"
+GEOJSON_PATH = f"{PROJECT_ROOT}\\data\\reference\\milano-grid.geojson"
+DATABASE_PATH = f"{PROJECT_ROOT}\\data\\warehouse\\network_analytics.db"
 
 def create_spark():
     return (

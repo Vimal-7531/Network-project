@@ -67,20 +67,27 @@ def build_grid_hour_table(path: str) -> pd.DataFrame:
 # ---------------------------------------------------------------------
 # Step 2: within-day baseline -- leave-one-out median per grid
 # ---------------------------------------------------------------------
-def add_within_day_baseline(grid_hour: pd.DataFrame) -> pd.DataFrame:
-    grid_hour = grid_hour.sort_values(["grid_id", "hour"]).reset_index(drop=True)
+def add_within_day_baseline(grid_hour: pd.DataFrame, bucket_cols=None) -> pd.DataFrame:
+    if bucket_cols is None:
+        bucket_cols = ["grid_id"]
+
+    grid_hour = grid_hour.sort_values(bucket_cols + ["timestamp"]).reset_index(drop=True)
 
     baselines = []
-    for grid_id, group in grid_hour.groupby("grid_id", sort=True):
+
+    for _, group in grid_hour.groupby(bucket_cols, sort=True):
         values = group["total_activity"].to_numpy()
+
         for i in range(len(values)):
-            other_hours = np.delete(values, i)   # every hour EXCEPT the one being evaluated
-            baselines.append(np.median(other_hours))
+            other_values = np.delete(values, i)
+
+            if len(other_values) == 0:
+                baselines.append(np.nan)
+            else:
+                baselines.append(np.median(other_values))
 
     grid_hour["baseline_activity"] = baselines
     return grid_hour
-
-
 # ---------------------------------------------------------------------
 # Step 3 & 4: activity floor + the three rules
 # ---------------------------------------------------------------------

@@ -1,0 +1,32 @@
+{
+    "algorithm": "Logistic Regression",
+    "threshold": 1186.8269,
+    "train_rows": 1289991,
+    "test_rows": 329998,
+    "train_earliest_timestamp": "2013-11-01 05:00:00",
+    "train_latest_timestamp": "2013-11-06 13:00:00",
+    "test_earliest_timestamp": "2013-11-06 14:00:00",
+    "test_latest_timestamp": "2013-11-07 22:00:00",
+    "chronological_split_valid": true,
+    "accuracy": 0.9594906635797793,
+    "precision": 0.7455786722849097,
+    "recall": 0.9784914790099167,
+    "test_base_rate": 0.11397947866350705,
+    "train_positive_rate": 0.08949829882534065,
+    "test_positive_rate": 0.11397947866350705,
+    "positive_test_samples": 37613,
+    "negative_test_samples": 292385,
+    "total_test_samples": 329998,
+    "np3_comparison": {
+        "np3_positive_definition": [
+            "HIGH_ACTIVITY",
+            "ACTIVITY_SPIKE"
+        ],
+        "np3_positive_test_rows": 9042,
+        "ml3_positive_test_rows": 49363,
+        "both_positive": 4402,
+        "ml3_only_risk": 44961,
+        "np3_only_alert": 4640,
+        "agreement": 280397
+    }
+}
