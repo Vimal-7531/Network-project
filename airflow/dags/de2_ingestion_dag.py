@@ -11,6 +11,8 @@ from phase3.spark.telecom_pipeline import main as run_spark_pipeline
 from phase3.validation.de7_validation import main as run_validation
 from phase3.warehouse.network_warehouse import main as run_warehouse
 from phase3.quality.de7_quality_check import main as run_quality_check, write_pipeline_status
+from phase6.ml.features import main as run_ml2_features
+from phase6.ml.batch_score import main as run_ml6_scoring
 
 
 def notify_success():
@@ -87,6 +89,16 @@ with DAG(
         retries=2,
         retry_delay=timedelta(minutes=5),
     )
+
+    run_ml2_features = PythonOperator(
+        task_id="run_ml2_features",
+        python_callable=run_ml2_features,
+    )
+
+    run_ml6_scoring = PythonOperator(
+        task_id="run_ml6_scoring",
+        python_callable=run_ml6_scoring,
+    )
     run_validation = PythonOperator(
         task_id="run_validation",
         python_callable=run_validation,
@@ -113,4 +125,4 @@ with DAG(
         trigger_rule="all_done",
     )
 
-    run_de2_ingestion >> run_de3_spark >> run_validation >> load_warehouse >> quality_check >> notify >> pipeline_status
+    run_de2_ingestion >> run_de3_spark >> run_ml2_features >> run_ml6_scoring >> run_validation >> load_warehouse >> quality_check >> notify >> pipeline_status
