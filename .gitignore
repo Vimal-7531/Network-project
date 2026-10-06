@@ -98,3 +98,7 @@ phase6/ml/ml4_output/network_anomaly_scores.csv
 phase6/ml/ml4_output/three_way_comparison.csv
 myenv/
 phase6/ml/ml3_output/train_dataset.csv
+
+daily_summary.csv
+grid_summary.csv
+logs/pipeline_quality_status.csv

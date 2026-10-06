@@ -257,12 +257,14 @@ def main(input_dir=None, output_dir=None, analytics_dir=None, reference_path=Non
     )
 
     spark = (
-        SparkSession.builder
-        .appName("NetworkIntelligence-DE3")
-        .master("local[2]")
-        .config("spark.sql.shuffle.partitions", "4")
-        .config("spark.sql.session.timeZone", "UTC")
-        .getOrCreate()
+    SparkSession.builder
+    .appName("NetworkIntelligence-DE3")
+    .master("local[2]")
+    .config("spark.sql.shuffle.partitions", "4")
+    .config("spark.sql.session.timeZone", "UTC")
+    .config("spark.hadoop.fs.permissions.umask-mode", "000")
+    .config("spark.hadoop.fs.file.impl", "org.apache.hadoop.fs.RawLocalFileSystem")
+    .getOrCreate()
     )
 
     try:

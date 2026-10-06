@@ -5,7 +5,7 @@ from datetime import datetime
 
 from pyspark.sql import SparkSession
 
-PROJECT_ROOT = "/mnt/c/Network-project"
+PROJECT_ROOT = "/mnt/c/Users/vimalraj.ck/network_project"
 ANALYTICS_PATH = f"{PROJECT_ROOT}/data/analytics/hourly_grid_summary"
 DATABASE_PATH = f"{PROJECT_ROOT}/data/warehouse/network_analytics.db"
 STATUS_PATH = f"{PROJECT_ROOT}/logs/pipeline_quality_status.csv"

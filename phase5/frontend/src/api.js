@@ -35,13 +35,18 @@ export async function getHotspots(limit = 10) {
 
     return response.json()
 }
+export async function getAlerts(limit = 10, severity = "") {
+    const params = new URLSearchParams()
 
-export async function getAlerts(severity = "") {
-    const url = severity
-        ? `${API_BASE_URL}/network/alerts?severity=${encodeURIComponent(severity)}`
-        : `${API_BASE_URL}/network/alerts`
+    params.set("limit", limit)
 
-    const response = await fetch(url)
+    if (severity) {
+        params.set("severity", severity)
+    }
+
+    const response = await fetch(
+        `${API_BASE_URL}/network/alerts?${params.toString()}`
+    )
 
     if (!response.ok) {
         throw new Error(`Alerts request failed with status ${response.status}`)

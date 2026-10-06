@@ -1,7 +1,7 @@
 import sys
 from datetime import datetime, timedelta
 
-sys.path.insert(0, "/mnt/c/Network-project")
+sys.path.insert(0, "/mnt/c/Users/vimalraj.ck/network_project")
 
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
@@ -60,10 +60,10 @@ def record_pipeline_status():
 
 def run_de3_with_failure():
     result = run_spark_pipeline(
-        input_dir="/mnt/c/Network-project/data/raw",
-        output_dir="/mnt/c/Network-project/data/processed/activity",
-        analytics_dir="/mnt/c/Network-project/data/analytics",
-        reference_path="/mnt/c/Network-project/data/reference/milano-grid.geojson",
+        input_dir="/mnt/c/Users/vimalraj.ck/network_project/data/raw",
+        output_dir="/mnt/c/Users/vimalraj.ck/network_project/data/processed/activity",
+        analytics_dir="/mnt/c/Users/vimalraj.ck/network_project/data/analytics",
+        reference_path="/mnt/c/Users/vimalraj.ck/network_project/data/reference/milano-grid.geojson",
     )
 
     if result != 0:

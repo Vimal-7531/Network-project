@@ -84,7 +84,13 @@ def validate_file(file_path):
 
                 for column_index in range(3, 8):
                     try:
-                        value = float(row[column_index])
+                        value = row[column_index].strip()
+
+                        if value == "":
+                            continue
+
+                        value = float(value)
+
                     except ValueError:
                         return False, f"Non-numeric value in {REQUIRED_COLUMNS[column_index]} at row {row_number}"
 
@@ -126,7 +132,7 @@ def process_file(file_path):
     is_valid, reason = validate_file(file_path)
 
     if is_valid:
-        shutil.copy2(file_path, raw_destination)
+        shutil.copyfile(file_path, raw_destination)
 
         write_audit_log(
             file_path.name,
@@ -137,7 +143,7 @@ def process_file(file_path):
         print(f"ACCEPTED: {file_path.name}")
 
     else:
-        shutil.copy2(file_path, rejected_destination)
+        shutil.copyfile(file_path, rejected_destination)
 
         write_audit_log(
             file_path.name,

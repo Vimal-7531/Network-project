@@ -1,4 +1,26 @@
 import { useEffect, useMemo, useState } from "react"
+import {
+    MapContainer,
+    TileLayer,
+    GeoJSON,
+    useMap
+} from "react-leaflet"
+import L from "leaflet"
+import "leaflet/dist/leaflet.css"
+
+function MapController({ bounds }) {
+    const map = useMap()
+
+    useEffect(() => {
+        if (bounds && bounds.isValid()) {
+            map.fitBounds(bounds, {
+                padding: [20, 20]
+            })
+        }
+    }, [map, bounds])
+
+    return null
+}
 
 function MilanMap({
     hotspots = [],
@@ -6,16 +28,15 @@ function MilanMap({
     selectedGrid,
     onSelectGrid
 }) {
-
     const [geoJson, setGeoJson] = useState(null)
     const [geoJsonError, setGeoJsonError] = useState(null)
 
     useEffect(() => {
-        let mounted = true
-
         async function loadGeoJson() {
             try {
-                const response = await fetch("/reference/milano-grid.geojson")
+                const response = await fetch(
+                    "/reference/milano-grid.geojson"
+                )
 
                 if (!response.ok) {
                     throw new Error(
@@ -24,22 +45,13 @@ function MilanMap({
                 }
 
                 const data = await response.json()
-
-                if (mounted) {
-                    setGeoJson(data)
-                }
+                setGeoJson(data)
             } catch (error) {
-                if (mounted) {
-                    setGeoJsonError(error.message)
-                }
+                setGeoJsonError(error.message)
             }
         }
 
         loadGeoJson()
-
-        return () => {
-            mounted = false
-        }
     }, [])
 
     const statusByGrid = useMemo(() => {
@@ -48,143 +60,184 @@ function MilanMap({
         alerts.forEach((alert) => {
             const gridId = Number(alert.grid_id)
 
-            if (!map.has(gridId)) {
-                map.set(gridId, {
-                    status: alert.severity === "HIGH"
-                        ? "HIGH"
-                        : alert.severity === "MEDIUM"
-                            ? "ATTENTION"
-                            : "NORMAL",
-                    alert
-                })
+            if (!Number.isFinite(gridId)) {
+                return
             }
+
+            const severity =
+                String(alert.severity || "LOW").toUpperCase()
+
+            const status =
+                severity === "HIGH"
+                    ? "HIGH"
+                    : severity === "MEDIUM"
+                        ? "ATTENTION"
+                        : "NORMAL"
+
+            map.set(gridId, status)
         })
 
         hotspots.forEach((hotspot) => {
             const gridId = Number(hotspot.grid_id)
 
-            if (!map.has(gridId)) {
-                map.set(gridId, {
-                    status: hotspot.status || "NORMAL",
-                    hotspot
-                })
-            } else {
-                const existing = map.get(gridId)
+            if (!Number.isFinite(gridId)) {
+                return
+            }
 
-                map.set(gridId, {
-                    ...existing,
-                    hotspot
-                })
+            if (!map.has(gridId)) {
+                map.set(
+                    gridId,
+                    String(hotspot.status || "NORMAL").toUpperCase()
+                )
             }
         })
 
         return map
     }, [hotspots, alerts])
 
-    const visibleFeatures = useMemo(() => {
-        if (!geoJson?.features) {
-            return []
+    const visibleGeoJson = useMemo(() => {
+        if (!geoJson?.features?.length) {
+            return null
         }
 
-        const relevantGridIds = new Set(
-            hotspots.map((item) => Number(item.grid_id))
-        )
+        const visibleGridIds = new Set()
 
-        alerts.forEach((item) => {
-            relevantGridIds.add(Number(item.grid_id))
-        })
+        hotspots.forEach((hotspot) => {
+            const gridId = Number(hotspot.grid_id)
 
-        return geoJson.features.filter((feature) => {
-            const cellId = Number(feature.properties?.cellId)
-            return relevantGridIds.has(cellId)
-        })
-    }, [geoJson, hotspots, alerts])
-
-    const bounds = useMemo(() => {
-        if (!visibleFeatures.length) {
-            return {
-                minLon: 9,
-                maxLon: 9.35,
-                minLat: 45.35,
-                maxLat: 45.55
+            if (Number.isFinite(gridId)) {
+                visibleGridIds.add(gridId)
             }
-        }
+        })
 
-        let minLon = Infinity
-        let maxLon = -Infinity
-        let minLat = Infinity
-        let maxLat = -Infinity
+        alerts.forEach((alert) => {
+            const gridId = Number(alert.grid_id)
 
-        visibleFeatures.forEach((feature) => {
-            const coordinates = feature.geometry?.coordinates?.[0] || []
-
-            coordinates.forEach(([lon, lat]) => {
-                minLon = Math.min(minLon, lon)
-                maxLon = Math.max(maxLon, lon)
-                minLat = Math.min(minLat, lat)
-                maxLat = Math.max(maxLat, lat)
-            })
+            if (Number.isFinite(gridId)) {
+                visibleGridIds.add(gridId)
+            }
         })
 
         return {
-            minLon,
-            maxLon,
-            minLat,
-            maxLat
-        }
-    }, [visibleFeatures])
+            ...geoJson,
+            features: geoJson.features.filter((feature) => {
+                const cellId = Number(feature.properties?.cellId)
 
-    function projectPoint(lon, lat) {
-        const width = 900
-        const height = 560
-        const padding = 30
-
-        const lonRange = bounds.maxLon - bounds.minLon || 1
-        const latRange = bounds.maxLat - bounds.minLat || 1
-
-        const x =
-            padding +
-            ((lon - bounds.minLon) / lonRange) *
-                (width - padding * 2)
-
-        const y =
-            height -
-            padding -
-            ((lat - bounds.minLat) / latRange) *
-                (height - padding * 2)
-
-        return [x, y]
-    }
-
-    function polygonPath(feature) {
-        const rings = feature.geometry?.coordinates || []
-
-        return rings
-            .map((ring) => {
-                return ring
-                    .map(([lon, lat], index) => {
-                        const [x, y] = projectPoint(lon, lat)
-
-                        return `${index === 0 ? "M" : "L"} ${x} ${y}`
-                    })
-                    .join(" ") + " Z"
+                return visibleGridIds.has(cellId)
             })
-            .join(" ")
+        }
+    }, [geoJson, hotspots, alerts])
+
+    const mapBounds = useMemo(() => {
+        if (!visibleGeoJson?.features?.length) {
+            return L.latLngBounds(
+                [45.35, 9.00],
+                [45.55, 9.35]
+            )
+        }
+
+        const bounds = L.latLngBounds([])
+
+        visibleGeoJson.features.forEach((feature) => {
+            const layer = L.geoJSON(feature)
+            const featureBounds = layer.getBounds()
+
+            if (featureBounds.isValid()) {
+                bounds.extend(featureBounds)
+            }
+        })
+
+        return bounds
+    }, [visibleGeoJson])
+
+    function getStatus(cellId) {
+        return statusByGrid.get(cellId) || "NORMAL"
     }
 
-    function getFeatureStatus(cellId) {
-        return statusByGrid.get(cellId)?.status || "NORMAL"
+    function getStyle(feature) {
+        const cellId = Number(feature.properties?.cellId)
+        const status = getStatus(cellId)
+
+        if (selectedGrid === cellId) {
+            return {
+                color: "#111827",
+                weight: 3,
+                opacity: 1,
+                fillColor: "#2563eb",
+                fillOpacity: 0.65
+            }
+        }
+
+        if (status === "HIGH") {
+            return {
+                color: "#dc2626",
+                weight: 1.5,
+                opacity: 1,
+                fillColor: "#ef4444",
+                fillOpacity: 0.55
+            }
+        }
+
+        if (status === "ATTENTION") {
+            return {
+                color: "#d97706",
+                weight: 1.5,
+                opacity: 1,
+                fillColor: "#facc15",
+                fillOpacity: 0.55
+            }
+        }
+
+        return {
+            color: "#000000",
+            weight: 2,
+            opacity: 1,
+            fillColor: "#ffffff",
+            fillOpacity: 0.35
+        }
     }
 
-    function handlePolygonClick(cellId) {
-        onSelectGrid(cellId)
+    function handleEachFeature(feature, layer) {
+        const cellId = Number(feature.properties?.cellId)
+        const status = getStatus(cellId)
+
+        layer.bindTooltip(
+            `Grid ${cellId}<br>Status: ${status}`,
+            {
+                sticky: true
+            }
+        )
+
+        layer.on({
+            click: () => {
+                if (onSelectGrid) {
+                    onSelectGrid(cellId)
+                }
+            },
+
+            mouseover: () => {
+                layer.setStyle({
+                    weight: 3,
+                    opacity: 1,
+                    fillOpacity: 0.5
+                })
+
+                layer.bringToFront()
+            },
+
+            mouseout: () => {
+                layer.setStyle(getStyle(feature))
+            }
+        })
     }
 
     if (geoJsonError) {
         return (
             <div className="map-panel">
                 <div className="page-state">
-                    <strong>Unable to load Milan grid map</strong>
+                    <strong>
+                        Unable to load Milan grid map
+                    </strong>
                     <span>{geoJsonError}</span>
                 </div>
             </div>
@@ -200,6 +253,8 @@ function MilanMap({
             </div>
         )
     }
+    console.log("GeoJSON features:", geoJson.features.length)
+    console.log("First grid:", geoJson.features[0])
 
     return (
         <div className="map-panel">
@@ -212,8 +267,8 @@ function MilanMap({
                     <h2>Milan Grid Map</h2>
 
                     <p>
-                        Showing operational grids returned by the current
-                        hotspot and alert selection.
+                        Interactive network grid map with operational
+                        hotspot and alert status.
                     </p>
                 </div>
 
@@ -236,63 +291,41 @@ function MilanMap({
             </div>
 
             <div className="map-canvas">
-                <svg
-                    viewBox="0 0 900 560"
-                    role="img"
-                    aria-label="Milan network grid operational map"
+                <MapContainer
+                    center={[45.4642, 9.1900]}
+                    zoom={11}
+                    scrollWheelZoom={true}
+                    preferCanvas={true}
+                    style={{
+                        width: "100%",
+                        height: "650px"
+                    }}
                 >
-                    {visibleFeatures.map((feature) => {
-                        const cellId = Number(
-                            feature.properties?.cellId
-                        )
+                    <TileLayer
+                        attribution="&copy; OpenStreetMap contributors"
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
 
-                        const status = getFeatureStatus(cellId)
+                    <MapController
+                        bounds={mapBounds}
+                    />
 
-                        const isSelected =
-                            selectedGrid === cellId
-
-                        return (
-                            <path
-                                key={cellId}
-                                d={polygonPath(feature)}
-                                className={`grid-polygon grid-${status.toLowerCase()} ${
-                                    isSelected
-                                        ? "grid-selected"
-                                        : ""
-                                }`}
-                                tabIndex="0"
-                                role="button"
-                                aria-label={`Grid ${cellId}, status ${status}`}
-                                onClick={() =>
-                                    handlePolygonClick(cellId)
-                                }
-                                onKeyDown={(event) => {
-                                    if (
-                                        event.key === "Enter" ||
-                                        event.key === " "
-                                    ) {
-                                        handlePolygonClick(cellId)
-                                    }
-                                }}
-                            />
-                        )
-                    })}
-                </svg>
-
-                {!visibleFeatures.length && (
-                    <div className="map-empty">
-                        No grid polygons match the current selection.
-                    </div>
-                )}
+                    <GeoJSON
+                        key={visibleGeoJson?.features.length || 0}
+                        data={visibleGeoJson}
+                        style={getStyle}
+                        onEachFeature={handleEachFeature}
+                    />
+                </MapContainer>
             </div>
 
             <div className="map-footer">
                 <span>
-                    Displayed grids: {visibleFeatures.length}
+                    Displayed operational grids: {visibleGeoJson?.features.length || 0}
                 </span>
 
                 <span>
-                    Click a grid to open Grid Explorer.
+                    Click a hotspot or alert grid to open Grid Explorer.
                 </span>
             </div>
         </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { getAlerts, getHotspots } from "../api"
 import MilanMap from "../components/MilanMap"
 
@@ -22,7 +22,7 @@ function Hotspots({ onOpenGrid }) {
                 const [hotspotResponse, alertResponse] =
                     await Promise.all([
                         getHotspots(limit),
-                        getAlerts(severity)
+                        getAlerts(limit,severity)
                     ])
 
                 if (!active) {
@@ -51,51 +51,20 @@ function Hotspots({ onOpenGrid }) {
         }
     }, [limit, severity])
 
-    const alertByGrid = useMemo(() => {
-        const map = new Map()
-
-        alerts.forEach((alert) => {
-            const gridId = Number(alert.grid_id)
-
-            if (!map.has(gridId)) {
-                map.set(gridId, alert)
-            }
-        })
-
-        return map
-    }, [alerts])
-
-    const rows = useMemo(() => {
-        return hotspots.map((hotspot, index) => {
-            const gridId = Number(hotspot.grid_id)
-            const alert = alertByGrid.get(gridId)
-
-            let status = hotspot.status || "NORMAL"
-
-            if (alert?.severity === "HIGH") {
-                status = "HIGH"
-            } else if (alert?.severity === "MEDIUM") {
-                status = "ATTENTION"
-            } else if (alert?.severity === "LOW") {
-                status = "NORMAL"
-            }
-
-            return {
-                ...hotspot,
-                gridId,
-                rank: index + 1,
-                alert,
-                status
-            }
-        })
-    }, [hotspots, alertByGrid])
-
     function handleGridSelect(gridId) {
         setSelectedGrid(gridId)
 
         if (onOpenGrid) {
             onOpenGrid(gridId)
         }
+    }
+
+    function getSeverityClass(value) {
+        if (!value) {
+            return "status-normal"
+        }
+
+        return `status-${String(value).toLowerCase()}`
     }
 
     return (
@@ -109,8 +78,8 @@ function Hotspots({ onOpenGrid }) {
                     <h1>Hotspots & Alerts</h1>
 
                     <p>
-                        Ranked operational attention areas from the
-                        network intelligence APIs.
+                        Ranked high-activity areas and current
+                        operational alerts from the network intelligence APIs.
                     </p>
                 </div>
 
@@ -165,16 +134,22 @@ function Hotspots({ onOpenGrid }) {
                     <div className="hotspot-summary">
                         <div className="summary-item">
                             <span>Hotspots</span>
-                            <strong>{rows.length}</strong>
+                            <strong>{hotspots.length}</strong>
+                        </div>
+
+                        <div className="summary-item">
+                            <span>Alerts</span>
+                            <strong>{alerts.length}</strong>
                         </div>
 
                         <div className="summary-item">
                             <span>High</span>
                             <strong>
                                 {
-                                    rows.filter(
-                                        (row) =>
-                                            row.status === "HIGH"
+                                    alerts.filter(
+                                        (alert) =>
+                                            String(alert.severity).toUpperCase() ===
+                                            "HIGH"
                                     ).length
                                 }
                             </strong>
@@ -184,22 +159,10 @@ function Hotspots({ onOpenGrid }) {
                             <span>Attention</span>
                             <strong>
                                 {
-                                    rows.filter(
-                                        (row) =>
-                                            row.status ===
-                                            "ATTENTION"
-                                    ).length
-                                }
-                            </strong>
-                        </div>
-
-                        <div className="summary-item">
-                            <span>Normal</span>
-                            <strong>
-                                {
-                                    rows.filter(
-                                        (row) =>
-                                            row.status === "NORMAL"
+                                    alerts.filter(
+                                        (alert) =>
+                                            String(alert.severity).toUpperCase() ===
+                                            "MEDIUM"
                                     ).length
                                 }
                             </strong>
@@ -211,21 +174,21 @@ function Hotspots({ onOpenGrid }) {
                             <div className="panel-header">
                                 <div>
                                     <div className="eyebrow">
-                                        RANKED VIEW
+                                        HOTSPOTS
                                     </div>
 
-                                    <h2>Operational Attention</h2>
+                                    <h2>Ranked High-Activity Grids</h2>
                                 </div>
 
                                 <span className="panel-count">
-                                    {rows.length} grids
+                                    {hotspots.length} grids
                                 </span>
                             </div>
 
-                            {rows.length === 0 ? (
+                            {hotspots.length === 0 ? (
                                 <div className="page-state compact">
-                                    No hotspot records match the
-                                    selected filter.
+                                    No hotspot records match the selected
+                                    filter.
                                 </div>
                             ) : (
                                 <div className="table-wrapper">
@@ -236,85 +199,212 @@ function Hotspots({ onOpenGrid }) {
                                                 <th>Grid</th>
                                                 <th>Activity</th>
                                                 <th>Status</th>
-                                                <th>Alert</th>
                                                 <th>Timestamp</th>
                                             </tr>
                                         </thead>
 
                                         <tbody>
-                                            {rows.map((row) => (
-                                                <tr
-                                                    key={`${row.gridId}-${row.timestamp}`}
-                                                    className={
-                                                        selectedGrid ===
-                                                        row.gridId
-                                                            ? "row-selected"
-                                                            : ""
-                                                    }
-                                                    onClick={() =>
-                                                        handleGridSelect(
-                                                            row.gridId
-                                                        )
-                                                    }
-                                                >
-                                                    <td>
-                                                        <span className="rank-number">
-                                                            {row.rank}
-                                                        </span>
-                                                    </td>
+                                            {hotspots.map((hotspot, index) => {
+                                                const gridId = Number(
+                                                    hotspot.grid_id
+                                                )
 
-                                                    <td>
-                                                        <button
-                                                            className="grid-link"
-                                                            onClick={(
-                                                                event
-                                                            ) => {
-                                                                event.stopPropagation()
-                                                                handleGridSelect(
-                                                                    row.gridId
-                                                                )
-                                                            }}
-                                                        >
-                                                            {row.gridId}
-                                                        </button>
-                                                    </td>
+                                                const status =
+                                                    hotspot.status || "NORMAL"
 
-                                                    <td>
-                                                        {Number(
-                                                            row.total_activity
-                                                        ).toFixed(2)}
-                                                    </td>
+                                                return (
+                                                    <tr
+                                                        key={`${gridId}-${hotspot.timestamp}`}
+                                                        className={
+                                                            selectedGrid ===
+                                                            gridId
+                                                                ? "row-selected"
+                                                                : ""
+                                                        }
+                                                        onClick={() =>
+                                                            handleGridSelect(
+                                                                gridId
+                                                            )
+                                                        }
+                                                    >
+                                                        <td>
+                                                            <span className="rank-number">
+                                                                {index + 1}
+                                                            </span>
+                                                        </td>
 
-                                                    <td>
-                                                        <span
-                                                            className={`status-badge status-${row.status.toLowerCase()}`}
-                                                        >
-                                                            {row.status}
-                                                        </span>
-                                                    </td>
+                                                        <td>
+                                                            <button
+                                                                className="grid-link"
+                                                                onClick={(
+                                                                    event
+                                                                ) => {
+                                                                    event.stopPropagation()
+                                                                    handleGridSelect(
+                                                                        gridId
+                                                                    )
+                                                                }}
+                                                            >
+                                                                {gridId}
+                                                            </button>
+                                                        </td>
 
-                                                    <td>
-                                                        {row.alert
-                                                            ?.alert_type ||
-                                                            "—"}
-                                                    </td>
+                                                        <td>
+                                                            {Number(
+                                                                hotspot.total_activity
+                                                            ).toFixed(2)}
+                                                        </td>
 
-                                                    <td>
-                                                        {row.timestamp}
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                                        <td>
+                                                            <span
+                                                                className={`status-badge ${getSeverityClass(
+                                                                    status
+                                                                )}`}
+                                                            >
+                                                                {status}
+                                                            </span>
+                                                        </td>
+
+                                                        <td>
+                                                            {hotspot.timestamp}
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
                             )}
                         </div>
+                    </div>
 
+                    <div className="hotspot-layout">
+                        <div className="hotspot-table-panel">
+                            <div className="panel-header">
+                                <div>
+                                    <div className="eyebrow">
+                                        ALERTS
+                                    </div>
+
+                                    <h2>Current Operational Alerts</h2>
+                                </div>
+
+                                <span className="panel-count">
+                                    {alerts.length} alerts
+                                </span>
+                            </div>
+
+                            {alerts.length === 0 ? (
+                                <div className="page-state compact">
+                                    No alerts match the selected severity.
+                                </div>
+                            ) : (
+                                <div className="table-wrapper">
+                                    <table className="hotspot-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Grid</th>
+                                                <th>Alert Type</th>
+                                                <th>Severity</th>
+                                                <th>Current</th>
+                                                <th>Baseline</th>
+                                                <th>Reason</th>
+                                                <th>Timestamp</th>
+                                            </tr>
+                                        </thead>
+
+                                        <tbody>
+                                            {alerts.map((alert) => {
+                                                const gridId = Number(
+                                                    alert.grid_id
+                                                )
+
+                                                const severityValue =
+                                                    String(
+                                                        alert.severity || "LOW"
+                                                    ).toUpperCase()
+
+                                                return (
+                                                    <tr
+                                                        key={`${gridId}-${alert.timestamp}-${alert.alert_type}`}
+                                                        className={
+                                                            selectedGrid ===
+                                                            gridId
+                                                                ? "row-selected"
+                                                                : ""
+                                                        }
+                                                        onClick={() =>
+                                                            handleGridSelect(
+                                                                gridId
+                                                            )
+                                                        }
+                                                    >
+                                                        <td>
+                                                            <button
+                                                                className="grid-link"
+                                                                onClick={(
+                                                                    event
+                                                                ) => {
+                                                                    event.stopPropagation()
+                                                                    handleGridSelect(
+                                                                        gridId
+                                                                    )
+                                                                }}
+                                                            >
+                                                                {gridId}
+                                                            </button>
+                                                        </td>
+
+                                                        <td>
+                                                            {alert.alert_type ||
+                                                                "—"}
+                                                        </td>
+
+                                                        <td>
+                                                            <span
+                                                                className={`status-badge ${getSeverityClass(
+                                                                    severityValue
+                                                                )}`}
+                                                            >
+                                                                {severityValue}
+                                                            </span>
+                                                        </td>
+
+                                                        <td>
+                                                            {Number(
+                                                                alert.current_activity
+                                                            ).toFixed(2)}
+                                                        </td>
+
+                                                        <td>
+                                                            {Number(
+                                                                alert.baseline_activity
+                                                            ).toFixed(2)}
+                                                        </td>
+
+                                                        <td>
+                                                            {alert.reason || "—"}
+                                                        </td>
+
+                                                        <td>
+                                                            {alert.timestamp}
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="hotspot-layout">
                         <MilanMap
-                            hotspots={rows}
+                            hotspots={hotspots}
                             alerts={alerts}
                             selectedGrid={selectedGrid}
-                            onSelectGrid={setSelectedGrid}
+                            onSelectGrid={onOpenGrid}
                         />
                     </div>
                 </>

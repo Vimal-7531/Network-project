@@ -1,8 +1,0 @@
-run_id,timestamp,overall_status,rows_in,rows_rejected,nulls_handled,rows_published,as_of_reason,reason
-2026-09-04T01:21:19,2026-09-04T01:21:19,SUCCESS,1679994,0,0,1679994,2013-11-07 23:00:00,
-2026-09-04T01:47:43,2026-09-04T01:47:43,SUCCESS,1679994,0,0,1679994,2013-11-07 23:00:00,
-2026-09-04T02:51:46,2026-09-04T02:51:46,SUCCESS,1679994,0,0,1679994,2013-11-07 23:00:00,
-2026-09-05T07:13:13,2026-09-05T07:13:13,SUCCESS,1679994,0,0,1679994,2013-11-07 23:00:00,Quality checks passed
-2026-09-05T08:17:49,2026-09-05T08:17:49,SUCCESS,1679994,0,0,1679994,2013-11-07 23:00:00
-2026-09-05T08:28:55,2026-09-05T08:28:55,FAILED,,,,,,"__airflow_temporary_run_2026-09-05T15:28:27.586669+00:00__:{'load_warehouse': None, 'notify': None, 'quality_check': None, 'run_de2_ingestion': 'success', 'run_de3_spark': 'running', 'run_validation': None}"
-2026-09-05T08:31:30,2026-09-05T08:31:30,FAILED,,,,,,"manual__2026-09-05T13:53:00.457631+00:00:{'load_warehouse': 'success', 'notify': 'success', 'quality_check': 'success', 'run_de2_ingestion': 'success', 'run_de3_spark': 'success', 'run_validation': 'success'}"

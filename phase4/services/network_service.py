@@ -1,11 +1,12 @@
 import ast
 import csv
+import json
 import re
 import sqlite3
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 import pandas as pd
-
 from fastapi import HTTPException
 from phase6.ml.model_service import predict_risk
 
@@ -531,7 +532,7 @@ def find_alert_file():
 
     return None
 
-
+@lru_cache(maxsize=1)
 def load_np3_alerts():
     alert_file = find_alert_file()
 
@@ -614,7 +615,7 @@ def normalize_alert(row):
         "model_version": None
     }
 
-
+@lru_cache(maxsize=1)
 def load_ml6_risk_scores():
     risk_path = (
         PROJECT_ROOT
@@ -661,7 +662,6 @@ def load_ml6_risk_scores():
         )
 
     return risk
-
 def get_network_alerts(
     limit=50,
     severity=None,
@@ -676,32 +676,107 @@ def get_network_alerts(
     alerts = [
         normalize_alert(row)
         for row in load_np3_alerts()
+        if normalize_alert(row)["timestamp"] <= effective_as_of
     ]
-    risk_scores = load_ml6_risk_scores()
 
-    risk_map = {
-        (
-            int(row["grid_id"]),
-            pd.Timestamp(row["timestamp"]).date(),
-            pd.Timestamp(row["timestamp"]).hour
-        ): row
-        for _, row in risk_scores.iterrows()
-    }
-    alerts = [
-        alert
-        for alert in alerts
-        if alert["timestamp"] <= effective_as_of
-    ]
-    for alert in alerts:
-        alert_timestamp = pd.Timestamp(
-            alert["timestamp"]
+    if severity is not None:
+        alerts = [
+            alert
+            for alert in alerts
+            if alert["severity"].upper()
+            == severity.upper()
+        ]
+
+    alerts.sort(
+        key=lambda x: (
+            x["timestamp"],
+            {
+                "HIGH": 3,
+                "MEDIUM": 2,
+                "LOW": 1
+            }.get(
+                x["severity"],
+                0
+            ),
+            x["grid_id"],
+            x["alert_type"]
+        ),
+        reverse=True
+    )
+
+    selected_alerts = alerts[:limit]
+
+    if not selected_alerts:
+        return {
+            "as_of": effective_as_of,
+            "data": []
+        }
+
+    risk_path = (
+        PROJECT_ROOT
+        / "data"
+        / "analytics"
+        / "network_risk_scores"
+    )
+
+    timestamps = list(
+        {
+            pd.Timestamp(
+                alert["timestamp"]
+            )
+            for alert in selected_alerts
+        }
+    )
+
+    risk_frames = []
+
+    for timestamp in timestamps:
+        risk_part = pd.read_parquet(
+            risk_path,
+            filters=[
+                (
+                    "timestamp",
+                    "==",
+                    timestamp
+                )
+            ],
+            columns=[
+                "grid_id",
+                "timestamp",
+                "risk_score",
+                "risk_level",
+                "model_version"
+            ]
         )
 
+        if not risk_part.empty:
+            risk_frames.append(risk_part)
+
+    if risk_frames:
+        risk_scores = pd.concat(
+            risk_frames,
+            ignore_index=True
+        )
+
+        risk_map = {
+            (
+                int(row["grid_id"]),
+                pd.Timestamp(
+                    row["timestamp"]
+                )
+            ): row
+            for _, row in risk_scores.iterrows()
+        }
+    else:
+        risk_map = {}
+
+    for alert in selected_alerts:
         risk = risk_map.get(
             (
                 int(alert["grid_id"]),
-                alert_timestamp.date(),
-                alert_timestamp.hour
+                pd.Timestamp(
+                    alert["timestamp"]
+                )
             )
         )
 
@@ -715,61 +790,11 @@ def get_network_alerts(
             alert["model_version"] = str(
                 risk["model_version"]
             )
-    if severity is not None:
-        alerts = [
-            alert
-            for alert in alerts
-            if alert["severity"].upper()
-            == severity.upper()
-        ]
-
-    severity_order = {
-        "HIGH": 3,
-        "MEDIUM": 2,
-        "LOW": 1
-    }
-
-    alerts.sort(
-        key=lambda x: (
-            x["timestamp"],
-            severity_order.get(
-                x["severity"],
-                0
-            ),
-            x["grid_id"],
-            x["alert_type"]
-        ),
-        reverse=True
-    )
-
-    for alert in alerts:
-        risk = risk_map.get(
-            (
-                int(alert["grid_id"]),
-                pd.Timestamp(alert["timestamp"])
-            )
-        )
-
-    if risk is not None:
-        alert["risk_score"] = float(
-            risk["risk_score"]
-        )
-        alert["risk_level"] = str(
-            risk["risk_level"]
-        )
-        alert["model_version"] = str(
-            risk["model_version"]
-        )
-    else:
-        alert["risk_score"] = None
-        alert["risk_level"] = None
-        alert["model_version"] = None
 
     return {
         "as_of": effective_as_of,
-        "data": alerts[:limit]
+        "data": selected_alerts
     }
-
 
 def get_network_hotspots(
     limit=50,
@@ -818,28 +843,50 @@ def get_network_hotspots(
             )
         ).fetchall()
 
-        alerts = load_np3_alerts()
+        if not rows:
+            return {
+                "as_of": effective_as_of,
+                "data": []
+            }
 
-        risk_scores = load_ml6_risk_scores()
+        risk_path = (
+            PROJECT_ROOT
+            / "data"
+            / "analytics"
+            / "network_risk_scores"
+        )
+
+        risk = pd.read_parquet(
+            risk_path,
+            filters=[
+                (
+                    "timestamp",
+                    "==",
+                    pd.Timestamp(effective_as_of)
+                )
+            ],
+            columns=[
+                "grid_id",
+                "timestamp",
+                "risk_score",
+                "risk_level",
+                "model_version"
+            ]
+        )
 
         risk_map = {
-            (
-                int(row["grid_id"]),
-                pd.Timestamp(row["timestamp"]).date(),
-                pd.Timestamp(row["timestamp"]).hour
-            ): row
-            for _, row in risk_scores.iterrows()
+            int(row["grid_id"]): row
+            for _, row in risk.iterrows()
         }
+
+        alerts = load_np3_alerts()
 
         alert_map = {}
 
         for row in alerts:
             normalized = normalize_alert(row)
 
-            if (
-                normalized["timestamp"]
-                == effective_as_of
-            ):
+            if normalized["timestamp"] == effective_as_of:
                 alert_map[
                     normalized["grid_id"]
                 ] = normalized
@@ -861,6 +908,8 @@ def get_network_hotspots(
             ):
                 continue
 
+            risk_row = risk_map.get(grid_id)
+
             data.append(
                 {
                     "grid_id": grid_id,
@@ -881,54 +930,18 @@ def get_network_hotspots(
                         else "Highest activity for the selected hour."
                     ),
                     "risk_score": (
-                        float(
-                            risk_map[
-                                (
-                                    grid_id,
-                                    pd.Timestamp(row["timestamp"]).date(),
-                                    pd.Timestamp(row["timestamp"]).hour
-                                )
-                            ]["risk_score"]
-                        )
-                        if (
-                            grid_id,
-                            pd.Timestamp(row["timestamp"]).date(),
-                            pd.Timestamp(row["timestamp"]).hour
-                        ) in risk_map
+                        float(risk_row["risk_score"])
+                        if risk_row is not None
                         else None
                     ),
                     "risk_level": (
-                        str(
-                            risk_map[
-                                (
-                                    grid_id,
-                                    pd.Timestamp(row["timestamp"]).date(),
-                                    pd.Timestamp(row["timestamp"]).hour
-                                )
-                            ]["risk_level"]
-                        )
-                        if (
-                            grid_id,
-                            pd.Timestamp(row["timestamp"]).date(),
-                            pd.Timestamp(row["timestamp"]).hour
-                        ) in risk_map
+                        str(risk_row["risk_level"])
+                        if risk_row is not None
                         else None
                     ),
                     "model_version": (
-                        str(
-                            risk_map[
-                                (
-                                    grid_id,
-                                    pd.Timestamp(row["timestamp"]).date(),
-                                    pd.Timestamp(row["timestamp"]).hour
-                                )
-                            ]["model_version"]
-                        )
-                        if (
-                            grid_id,
-                            pd.Timestamp(row["timestamp"]).date(),
-                            pd.Timestamp(row["timestamp"]).hour
-                        ) in risk_map
+                        str(risk_row["model_version"])
+                        if risk_row is not None
                         else None
                     )
                 }
@@ -984,6 +997,14 @@ def get_grid_location(grid_id: int):
 
     finally:
         conn.close()
+
+@lru_cache(maxsize=1)
+def load_anomaly_scores():
+    anomaly_scores = pd.read_csv(ANOMALY_PATH)
+    anomaly_scores["timestamp"] = pd.to_datetime(
+        anomaly_scores["timestamp"]
+    )
+    return anomaly_scores
 def predict_network_risk(request):
     feature_path = PROJECT_ROOT / "data" / "analytics" / "network_feature_table"
 
@@ -1066,12 +1087,7 @@ def predict_network_risk(request):
 
     prediction = predict_risk(model_features)
 
-    anomaly_scores = pd.read_csv(ANOMALY_PATH)
-
-    anomaly_scores["timestamp"] = pd.to_datetime(
-        anomaly_scores["timestamp"]
-    )
-
+    anomaly_scores = load_anomaly_scores()
     target_date = feature_timestamp.date()
     target_hour = feature_timestamp.hour
 
